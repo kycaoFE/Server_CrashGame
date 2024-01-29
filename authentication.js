@@ -1,27 +1,54 @@
 var EventCode = require('./eventCode');
+const fs = require('fs');
 
-var userNames = [];
-var tokens = []
+var users = {
+        
+}
+fs.readFile('users.json', 'utf8', (err, data) => {
+    if (err) {
+      console.error(err);
+    } else {
+      try {
+        users = JSON.parse(data);
+        console.log(users);
+      } catch (parseError) {
+        console.error(parseError);
+      }
+}});
 
-function setUserName(userName){
-        userNames.push(userName);
+function updateUser(){
+    let jsonData = JSON.stringify(users, null, 2);
+    fs.writeFile('users.json', jsonData, 'utf8', (err) => {
+
+    });
+    console.log(users);
+
+}
+
+function setUserName(userName, token){
+    let newUser = {
+        token: token,
+    }
+    users[userName] = newUser;
 }
 
 function checkToken(userName){
-    for(let i =  0; i < userNames.length ; i++){
-        if(userNames[i] == userName) {
-            return EventCode.SERVER.TOKEN_EXISTED;
-        }
-    }
-    setUserName(userName);
-    let tokenGenerate = generateToken(userName)
     let response = {
         event: EventCode.SERVER.RECEIVED_TOKEN,
         data: {
-            token: tokenGenerate,
+            
         }
     }
-    tokens.push(response.data.token);
+    for(let user in users){
+        if(user == userName) {
+            response.data.token = EventCode.SERVER.TOKEN_EXISTED
+            return response;
+        }
+    }
+
+    response.data.token = generateToken(userName);
+    setUserName(userName, response.data.token);
+    updateUser();
     return response;
 
 }
@@ -33,32 +60,27 @@ function generateToken(userName) {
     return tokenWithUsername;
 }
 
-function getToken(userName) {
-    return checkToken(userName);
-}
-
 function checkIdentity(payload) {
-    console.log(payload);
-    console.log(userNames, tokens);
     let userName = payload.data.userName;
     let token = payload.data.token;
-    for(let i = 0; i < userNames.length; i++) {
-        if(userName == userNames[i] && token == tokens[i]){
-            let response = {
-                event: EventCode.SERVER.IDENTIFY,
-                data: {
-                    userName: userName,
-                    token: token,
-                }
-            }
+    let response = {
+        event: EventCode.SERVER.IDENTIFY,
+        data: {
+
+        }
+    }
+    for (let user in users) {
+        if(userName == user && token == user.token){
+            response.data.userName = userName;
+            response.data.token = token;
             return response;
         }
     }
-
-    return false;
+    response.data = null;
+    return response;
 }
 
 module.exports = {
-    getToken,
+    checkToken,
     checkIdentity,
 }
